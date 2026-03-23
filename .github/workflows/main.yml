@@ -1,19 +1,25 @@
-name: Kali-Linux-RDP
+name: Kali-SSH-Recon
 
 on:
   workflow_dispatch:
 
 jobs:
-  kali-rdp:
-    runs-on: ubuntu-latest  # نستخدم أوبنتو كقاعدة لتشغيل حاوية كالي
+  kali-ssh:
+    runs-on: ubuntu-latest
     timeout-minutes: 3600
 
     steps:
-      - name: Update and Install Kali Container
+      - name: Install Kali Linux & SSH
         run: |
           sudo apt update
-          # تثبيت أدوات العرض وواجهة المستخدم
-          sudo apt install -y xfce4 xfce4-goodies tightvncserver dbus-x11
+          sudo apt install -y openssh-server
+
+      - name: Setup SSH Password
+        run: |
+          # هنا بنعمل يوزر وبنخلي الباسورد kali123
+          echo "root:kali123" | sudo chpasswd
+          sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+          sudo service ssh start
 
       - name: Install Tailscale
         run: |
@@ -23,31 +29,20 @@ jobs:
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
         run: |
-          sudo tailscale up --authkey=$TAILSCALE_AUTH_KEY --hostname=kali-runner-${{ github.run_id }}
+          sudo tailscale up --authkey=$TAILSCALE_AUTH_KEY --hostname=kali-ssh-runner
           TS_IP=$(tailscale ip -4)
           echo "TAILSCALE_IP=$TS_IP" >> $GITHUB_ENV
 
-      - name: Setup VNC Password and Server
+      - name: Display Connection Info
         run: |
-          # إنشاء مستخدم RDP وكلمة سر قوية (كما في كودك القديم)
-          mkdir -p ~/.vnc
-          # كلمة السر هنا ستكون 'kali123' ويمكنك تغييرها
-          echo "kali123" | vncpasswd -f > ~/.vnc/passwd
-          chmod 600 ~/.vnc/passwd
-          
-          # بدء تشغيل السيرفر على شاشة رقم 1 (بورت 5901)
-          vncserver :1 -geometry 1280x720 -depth 24
-
-      - name: Maintain Connection & Show Info
-        run: |
-          echo "=== KALI RDP ACCESS INFO ==="
-          echo "Address: ${{ env.TAILSCALE_IP }}:1"
+          echo "=== SSH CONNECTION INFO ==="
+          echo "Command: ssh root@${{ env.TAILSCALE_IP }}"
           echo "Password: kali123"
-          echo "Use a VNC Viewer to connect."
-          echo "============================"
-          
-          # الحفاظ على السيرفر يعمل (نفس منطق الـ while في كودك)
+          echo "==========================="
+
+      - name: Maintain Connection
+        run: |
           while true; do
-            echo "[$(date)] Kali RDP Active..."
+            echo "[$(date)] SSH Server Active..."
             sleep 300
           done
