@@ -1,14 +1,17 @@
-- name: Setup SSH Password
+- name: Setup SSH Password & Fix Permissions
         run: |
-          # 1. تثبيت الـ SSH سيرفر
           sudo apt update && sudo apt install -y openssh-server
           
-          # 2. تغيير باسورد الـ root
+          # تعيين الباسورد
           echo "root:kali123" | sudo chpasswd
           
-          # 3. تعديل ملف الإعدادات للسماح بالدخول كـ root وباسورد (مهم جداً!)
-          sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          # مسح أي إعدادات قديمة وإضافة الإعدادات اللي بتسمح بالدخول فوراً
+          sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/.*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
           
-          # 4. ريستارت للخدمة عشان التعديلات تسمع
+          # تأكيد تغيير الإعدادات في ملف منفصل لضمان العمل
+          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config.d/allow-root.conf
+          echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config.d/allow-root.conf
+          
+          # إعادة تشغيل الخدمة
           sudo service ssh restart
