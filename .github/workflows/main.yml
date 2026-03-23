@@ -1,0 +1,53 @@
+name: Kali-Linux-RDP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  kali-rdp:
+    runs-on: ubuntu-latest  # نستخدم أوبنتو كقاعدة لتشغيل حاوية كالي
+    timeout-minutes: 3600
+
+    steps:
+      - name: Update and Install Kali Container
+        run: |
+          sudo apt update
+          # تثبيت أدوات العرض وواجهة المستخدم
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver dbus-x11
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Establish Tailscale Connection
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          sudo tailscale up --authkey=$TAILSCALE_AUTH_KEY --hostname=kali-runner-${{ github.run_id }}
+          TS_IP=$(tailscale ip -4)
+          echo "TAILSCALE_IP=$TS_IP" >> $GITHUB_ENV
+
+      - name: Setup VNC Password and Server
+        run: |
+          # إنشاء مستخدم RDP وكلمة سر قوية (كما في كودك القديم)
+          mkdir -p ~/.vnc
+          # كلمة السر هنا ستكون 'kali123' ويمكنك تغييرها
+          echo "kali123" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+          
+          # بدء تشغيل السيرفر على شاشة رقم 1 (بورت 5901)
+          vncserver :1 -geometry 1280x720 -depth 24
+
+      - name: Maintain Connection & Show Info
+        run: |
+          echo "=== KALI RDP ACCESS INFO ==="
+          echo "Address: ${{ env.TAILSCALE_IP }}:1"
+          echo "Password: kali123"
+          echo "Use a VNC Viewer to connect."
+          echo "============================"
+          
+          # الحفاظ على السيرفر يعمل (نفس منطق الـ while في كودك)
+          while true; do
+            echo "[$(date)] Kali RDP Active..."
+            sleep 300
+          done
